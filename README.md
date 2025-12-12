@@ -374,15 +374,6 @@ Este projeto estabelece a **camada de ingestão**, mas o texto bruto ainda não 
 - [MinIO Python SDK](https://min.io/docs/minio/linux/developers/python/minio-py.html)
 - [Artigo Anterior: Data Lake para IA](https://github.com/mauropjjr/artigos-contruindo-data-like-para-ia-generativa)
 
-## 🤝 Contribuir
-
-Contribuições são bem-vindas! Por favor:
-
-1. Faça fork do projeto
-2. Crie uma branch para a sua feature (`git checkout -b feature/MinhaFeature`)
-3. Commit as alterações (`git commit -m 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
 
 ## 📝 Licença
 
@@ -392,7 +383,7 @@ Este projeto está sob a licença MIT. Veja o ficheiro [LICENSE](LICENSE) para m
 
 **Mauro Pichiliani Jr.**
 - GitHub: [@mauropjjr](https://github.com/mauropjjr)
-- LinkedIn: [Mauro Pichiliani Jr.](https://linkedin.com/in/mauropjjr)
+- LinkedIn: [Mauro Junior.](https://linkedin.com/in/mauropjjr)
 
 ---
 
