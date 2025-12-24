@@ -366,6 +366,30 @@ Este projeto estabelece a **camada de ingestão**, mas o texto bruto ainda não 
    - "Quais clientes têm pendências fiscais de ICMS?"
    - "Resumo das reuniões de Janeiro sobre ISS"
 
+### 📊 Fase Atual: Ingestão no Neo4j (Knowledge Graph)
+
+A versão atual já inclui a **integração com Neo4j** para armazenamento híbrido:
+
+- **Embeddings vetoriais** para busca semântica rápida
+- **Estrutura de grafo** para relacionamentos entre entidades (pessoas, organizações, locais)
+- **Extração de entidades** usando spaCy para português
+- **Chunks inteligentes** do texto para melhor indexação
+
+**Como funciona:**
+1. O Airflow processa documentos da camada Silver
+2. O script `knowledge_loader.py` divide o texto em chunks
+3. Gera embeddings usando Sentence Transformers
+4. Extrai entidades nomeadas (PERSON, ORG, LOC, etc.)
+5. Popula o grafo Neo4j com nós de Documento, Chunk e Entity
+6. Cria relacionamentos entre chunks e entidades mencionadas
+
+**Para verificar os dados no grafo:**
+```bash
+docker compose exec airflow-webserver python scripts/check_neo4j.py
+```
+
+Esta abordagem híbrida combina o melhor dos dois mundos: **busca vetorial rápida** + **relações contextuais profundas**.
+
 ## 📚 Referências
 
 - [Apache Airflow Documentation](https://airflow.apache.org/docs/)

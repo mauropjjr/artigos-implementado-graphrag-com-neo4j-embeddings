@@ -27,9 +27,16 @@ Este sistema implementa um pipeline de ingestão de dados não estruturados para
   - Prontos para vetorização
 
 ### 🥇 Gold (Analytics/Serving Zone)
-- **Propósito**: Dados otimizados para consumo (próxima fase)
-- **Formato**: Vetores de embedding + metadados
-- **Uso**: Busca semântica, RAG, Agentes de IA
+- **Propósito**: Dados otimizados para consumo e busca inteligente
+- **Formatos**: 
+  - Vetores de embedding (384 dimensões)
+  - Grafo de conhecimento (Neo4j)
+  - Metadados estruturados
+- **Componentes**:
+  - **Embeddings**: Sentence Transformers para busca semântica
+  - **Entidades**: Extração NER com spaCy (PERSON, ORG, LOC)
+  - **Grafo**: Relacionamentos entre documentos, chunks e entidades
+- **Uso**: Busca semântica, RAG, Agentes de IA, análise de relacionamentos
 
 ## Componentes Técnicos
 
@@ -51,18 +58,21 @@ Este sistema implementa um pipeline de ingestão de dados não estruturados para
 └─────────────────────────────────────┘
 ```
 
-### MinIO (S3-Compatible Storage)
+### Neo4j (Knowledge Graph)
 ```
 ┌─────────────────────────────────────┐
-│            MinIO Server             │
+│         Neo4j Graph Database        │
 │                                     │
 │  ┌─────────┐  ┌─────────┐  ┌─────┐│
-│  │ Bronze  │  │ Silver  │  │Gold ││
-│  │ Bucket  │→ │ Bucket  │→ │Bkt  ││
+│  │Document │  │ Chunk   │  │Entity││
+│  │ Nodes   │←→│ Nodes   │←→│Nodes││
 │  └─────────┘  └─────────┘  └─────┘│
 │                                     │
-│  API (S3): :9000                    │
-│  Console:  :9001                    │
+│  Vector Index: document_chunks      │
+│  Relationships: HAS_CHUNK, MENTIONS│
+│                                     │
+│  Bolt Protocol: :7687               │
+│  HTTP Console:  :7474               │
 └─────────────────────────────────────┘
 ```
 
@@ -104,6 +114,33 @@ Este sistema implementa um pipeline de ingestão de dados não estruturados para
               ┌───────▼────────┐
               │  lake-silver/  │
               │  documento.txt │
+              └───────┬────────┘
+                      │
+              ┌───────▼────────┐
+              │knowledge_loader│
+              │     .py        │
+              │                │
+              │ ┌────────────┐ │
+              │ │Text Chunking│ │
+              │ │(LangChain)  │ │
+              │ └─────┬──────┘ │
+              │       │        │
+              │ ┌─────▼─────┐  │
+              │ │Embeddings  │  │
+              │ │(Sentence   │  │
+              │ │Transformers│  │
+              │ └─────┬─────┘  │
+              │       │        │
+              │ ┌─────▼─────┐  │
+              │ │Entity NER  │  │
+              │ │(spaCy)     │  │
+              │ └─────┬─────┘  │
+              │       │        │
+              └───────┼────────┘
+                      │
+              ┌───────▼────────┐
+              │   Neo4j Graph   │
+              │ Knowledge Base │
               └────────────────┘
 ```
 
@@ -148,6 +185,60 @@ s3_client.put_object(
     Body=extracted_text.encode('utf-8')
 )
 ```
+
+### 5. Ingestão no Knowledge Graph
+```python
+# knowledge_loader.py - process_document_to_graph()
+chunks = split_text_into_chunks(text)
+for chunk in chunks:
+    embedding = embedder.encode(chunk)
+    entities = extract_entities(chunk)
+    # Criar nós no Neo4j
+    create_chunk_node(chunk, embedding)
+    create_entity_nodes(entities)
+    create_relationships(chunk, entities)
+```
+
+## Estrutura do Knowledge Graph
+
+### Nós Principais
+- **Document**: Representa ficheiros originais
+  - Propriedades: `name`, `source`, `created_at`, `content_length`
+- **Chunk**: Segmentos de texto com embeddings
+  - Propriedades: `id`, `content`, `embedding`, `position`
+- **Entity**: Entidades nomeadas extraídas
+  - Propriedades: `text`, `label` (PERSON, ORG, LOC, etc.)
+
+### Relacionamentos
+- `Document → HAS_CHUNK → Chunk`
+- `Chunk → MENTIONS → Entity`
+
+### Índice Vetorial
+```cypher
+CREATE VECTOR INDEX document_chunks
+FOR (c:Chunk) ON (c.embedding)
+OPTIONS {indexConfig: {
+    `vector.dimensions`: 384,
+    `vector.similarity_function`: 'cosine'
+}}
+```
+
+## Estratégia Híbrida: Vetorial + Grafo
+
+### Busca Semântica (Embeddings)
+- **Vantagem**: Busca por similaridade de significado
+- **Uso**: Queries como "documentos sobre tributação"
+- **Implementação**: Sentence Transformers + Neo4j Vector Index
+
+### Análise de Relacionamentos (Grafo)
+- **Vantagem**: Descoberta de conexões entre entidades
+- **Uso**: Queries como "quais pessoas estão relacionadas com empresa X"
+- **Implementação**: Cypher queries + Graph algorithms
+
+### Casos de Uso Combinados
+1. **RAG Contextual**: Busca vetorial + recuperação de contexto via grafo
+2. **Análise de Rede**: Mapear relacionamentos entre entidades
+3. **Descoberta de Padrões**: Identificar clusters e comunidades
 
 ## Escalabilidade
 
@@ -207,20 +298,6 @@ Internet → Firewall → Reverse Proxy (Nginx) → Airflow/MinIO
 | OCR | Tesseract | AWS Textract | Open-source, sem custos API |
 | Transcrição | Whisper | Google Speech-to-Text | Qualidade PT-BR, offline |
 | Base de Dados | PostgreSQL | MySQL, MongoDB | Suporte nativo Airflow |
-
-## Próximas Evoluções
-
-### Fase 2: Vetorização
-- Implementar embeddings com Sentence Transformers
-- Indexar no Pinecone/Qdrant
-- API de busca semântica
-
-### Fase 3: Agente de IA
-- Integração com LangChain
-- Implementação de RAG
-- Interface conversacional
-
-### Fase 4: Automação Completa
-- Processamento em tempo real (Event-Driven)
-- Auto-scaling baseado em carga
-- MLOps para retreinamento de modelos
+| Knowledge Graph | Neo4j | Amazon Neptune, JanusGraph | Cypher query language, vector search integrado |
+| Embeddings | Sentence Transformers | OpenAI Ada | Open-source, sem custos API, português |
+| NER | spaCy | AWS Comprehend | Biblioteca madura, modelo PT-BR |
