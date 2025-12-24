@@ -27,4 +27,15 @@ RUN pip install --no-cache-dir \
     torch \
     numpy \
     pandas \
-    boto3
+    boto3 \
+    spacy \
+    langchain \
+    langchain-community \
+    langchain-huggingface \
+    langchain-text-splitters \
+    langchain-core \
+    neo4j \
+    sentence-transformers
+
+# 3. Baixar modelo spaCy para Português
+RUN python -m spacy download pt_core_news_sm
